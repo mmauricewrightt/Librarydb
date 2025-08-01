@@ -58,6 +58,53 @@ def AddMember():
         if cnx:
             cnx.close
 
+@app.route("/deleteAccount", methods=["DELETE"])
+def DeleteAccount():
+    try:
+        cnx = getDbConnection()
+        cursor = cnx.cursor()
+        data = request.json
+        email = data["Email"]
+
+        accountType = getCurrentRole()
+
+        print(email, accountType, 1)
+
+        cursor.execute(f"SELECT * FROM ACCOUNT WHERE email='{email}';")
+
+        account = cursor.fetchone()
+
+        print(account[-1])
+
+        if account is None:
+            return make_response({"Message": f"No record of this email: {email}"}, 500)
+
+        if accountType in ("librarian", "admin") and account[-1] == "visitor":
+            cursor.execute(f"DELETE FROM ACCOUNT WHERE email='{email}';")
+            print(100000)
+
+        elif accountType in ("admin") and account[-1] in("admin", "librarian"):
+            cursor.execute(f"DELETE FROM ACCOUNT WHERE email='{email}';")
+            print(200000)
+        else:
+            print(300000)
+            return make_response({"Message": "Please consult an admin"}, 500)
+            
+
+        cnx.commit()
+        return make_response({"Message": f"Account with email: {email} was deleted"}, 200)
+
+    except Exception as e:
+        return make_response({"Message": str(e)}, 500)
+    finally:
+        if cursor:
+            cursor.close()
+        if cnx:
+            cnx.close()
+
+
+
+
 @app.route("/addBorrower", methods=["POST"])
 
 
