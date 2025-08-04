@@ -74,8 +74,6 @@ def DeleteAccount():
 
         account = cursor.fetchone()
 
-        print(account[-1])
-
         if account is None:
             return make_response({"Message": f"No record of this email: {email}"}, 500)
 
@@ -102,10 +100,79 @@ def DeleteAccount():
         if cnx:
             cnx.close()
 
-
-
-
 @app.route("/addBorrower", methods=["POST"])
+
+@app.route("/getLibrarians", methods=['GET'])
+def getLibrarians():
+    try:
+        cnx = getDbConnection()
+        cursor = cnx.cursor()
+        cursor.execute("SELECT * FROM Account WHERE accountType = 'librarian';")
+
+        librarians = []
+        for id, fname, lname, email, account in cursor:
+            librarian = {}
+            librarian['ID'] = id
+            librarian['firstName'] = fname
+            librarian['lastName'] = lname
+            librarian['email'] = email
+            librarian['accountType'] = account
+
+            librarians.append(librarian)
+    
+        cursor.close()
+        cnx.close() 
+        return make_response(librarians, 200)
+    except Exception as e:
+        return make_response({"error": str(e)}, 400)
+
+@app.route("/getVisitors", methods=['GET'])
+def getVisitors():
+    try:
+        cnx = getDbConnection()
+        cursor = cnx.cursor()
+        cursor.execute("SELECT * FROM Account WHERE accountType = 'visitor';")
+
+        visitors = []
+        for id, fname, lname, email, account in cursor:
+            visitor = {}
+            visitor['ID'] = id
+            visitor['firstName'] = fname
+            visitor['lastName'] = lname
+            visitor['email'] = email
+            visitor['accountType'] = account
+
+            visitors.append(visitor)
+    
+        cursor.close()
+        cnx.close() 
+        return make_response(visitors, 200)
+    except Exception as e:
+        return make_response({"error": str(e)}, 400)
+
+@app.route("/getAdmins", methods=['GET'])
+def getAdmins():
+    try:
+        cnx = getDbConnection()
+        cursor = cnx.cursor()
+        cursor.execute("SELECT * FROM Account WHERE accountType = 'admin';")
+
+        admins = []
+        for id, fname, lname, email, account in cursor:
+            admin = {}
+            admin['ID'] = id
+            admin['firstName'] = fname
+            admin['lastName'] = lname
+            admin['email'] = email
+            admin['accountType'] = account
+
+            admins.append(admin)
+    
+        cursor.close()
+        cnx.close() 
+        return make_response(admins, 200)
+    except Exception as e:
+        return make_response({"error": str(e)}, 400)
 
 
 @app.route("/addEvent", methods=["POST"])
@@ -141,6 +208,40 @@ def AddEvent():
         if cnx:
             cnx.close
 
+@app.route("/deleteEvent", methods=["DELETE"])
+def DeleteEvent():
+    try:
+        cnx = getDbConnection()
+        cursor = cnx.cursor()
+        data = request.json
+        eventName = data["Event's Name"]
+
+        accountType = getCurrentRole()
+
+        print(eventName, accountType, 1)
+
+        cursor.execute(f"SELECT * FROM CALENDAROFEVENTS WHERE EventName='{eventName}';")
+
+        event = cursor.fetchone()
+
+        if event is None:
+            return make_response({"Message": f"No record of this event: {eventName}"}, 500)
+
+        if accountType in ("librarian", "admin"):
+            cursor.execute(f"DELETE FROM CALENDAROFEVENTS WHERE EventName='{eventName}';")
+            print(100000)
+            cnx.commit()
+            return make_response({"Message": f"Event: {event} was deleted"}, 200)     
+
+        return make_response({"Message": f"Failed to delete this event: {event}"})       
+
+    except Exception as e:
+        return make_response({"Message": str(e)}, 500)
+    finally:
+        if cursor:
+            cursor.close()
+        if cnx:
+            cnx.close()
 
 
 @app.route("/login", methods=["POST"])
@@ -173,79 +274,6 @@ def userLogin():
 def test():
     return "connected"
 
-@app.route("/getLibrarians", methods=['GET'])
-def getLibrarians():
-    try:
-        cnx = getDbConnection()
-        cursor = cnx.cursor()
-        cursor.execute("SELECT * FROM Account WHERE accountType = 'librarian';")
-
-        librarians = []
-        for id, fname, lname, email, account in cursor:
-            librarian = {}
-            librarian['ID'] = id
-            librarian['firstName'] = fname
-            librarian['lastName'] = lname
-            librarian['email'] = email
-            librarian['accountType'] = account
-
-            librarians.append(librarian)
-    
-        cursor.close()
-        cnx.close() 
-        return make_response(librarians, 200)
-    except Exception as e:
-        return make_response({"error": str(e)}, 400)
-    
-
-@app.route("/getVisitors", methods=['GET'])
-def getVisitors():
-    try:
-        cnx = getDbConnection()
-        cursor = cnx.cursor()
-        cursor.execute("SELECT * FROM Account WHERE accountType = 'visitor';")
-
-        visitors = []
-        for id, fname, lname, email, account in cursor:
-            visitor = {}
-            visitor['ID'] = id
-            visitor['firstName'] = fname
-            visitor['lastName'] = lname
-            visitor['email'] = email
-            visitor['accountType'] = account
-
-            visitors.append(visitor)
-    
-        cursor.close()
-        cnx.close() 
-        return make_response(visitors, 200)
-    except Exception as e:
-        return make_response({"error": str(e)}, 400)
-
-
-@app.route("/getAdmins", methods=['GET'])
-def getAdmins():
-    try:
-        cnx = getDbConnection()
-        cursor = cnx.cursor()
-        cursor.execute("SELECT * FROM Account WHERE accountType = 'admin';")
-
-        admins = []
-        for id, fname, lname, email, account in cursor:
-            admin = {}
-            admin['ID'] = id
-            admin['firstName'] = fname
-            admin['lastName'] = lname
-            admin['email'] = email
-            admin['accountType'] = account
-
-            admins.append(admin)
-    
-        cursor.close()
-        cnx.close() 
-        return make_response(admins, 200)
-    except Exception as e:
-        return make_response({"error": str(e)}, 400)
 
 if __name__ == '__main__':
     app.run(port=5000, debug=True)
