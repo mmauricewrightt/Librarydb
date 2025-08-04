@@ -283,6 +283,29 @@ def DeleteEvent():
         if cnx:
             cnx.close()
 
+@app.route("/getEvents", methods=['GET'])
+def getEvents():
+    try:
+        cnx = getDbConnection()
+        cursor = cnx.cursor()
+        cursor.execute("SELECT * FROM CalendarOfEvents;")
+
+        events = []
+        for event_id, event_name, event_date, event_venue in cursor:
+            event = {}
+            event['id'] = event_id
+            event['name'] = event_name
+            event['date'] = event_date
+            event['venue'] = event_venue
+
+            events.append(event)
+    
+        cursor.close()
+        cnx.close() 
+        return make_response(events, 200)
+    except Exception as e:
+        return make_response({"error": str(e)}, 400)
+
 
 @app.route("/login", methods=["POST"])
 def userLogin():
