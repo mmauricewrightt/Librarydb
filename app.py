@@ -100,8 +100,6 @@ def DeleteAccount():
         if cnx:
             cnx.close()
 
-@app.route("/addBorrower", methods=["POST"])
-
 @app.route("/getLibrarians", methods=['GET'])
 def getLibrarians():
     try:
@@ -174,6 +172,48 @@ def getAdmins():
     except Exception as e:
         return make_response({"error": str(e)}, 400)
 
+@app.route("/editAccount", methods=['PUT'])
+def editAccount():
+    try:
+        cnx = getDbConnection()
+        cursor = cnx.cursor()
+        data = request.json
+
+        sessionRole = getCurrentRole()
+
+        email = data["Email"]
+        column_to_be_changed = data["Column"]
+        new_data = data["New Data"]
+
+        print(111111111111, email)
+
+        if sessionRole not in ("admin", "librarian"):
+            return make_response({"Message": "Only admin or librarian can make edits"}, 500)
+        
+        
+        cursor.execute(f"SELECT * FROM ACCOUNT WHERE email = '{email}';")
+        
+        data_from_email = cursor.fetchone()
+
+        print(22222222222222, data_from_email)
+
+        if data_from_email == None:
+            return make_response({"Message": "Email not found"}, 500)
+        
+        cursor.execute(f"UPDATE ACCOUNT SET {column_to_be_changed} = '{new_data}' WHERE email = '{email}';")
+
+        cnx.commit()
+        return make_response({"Message": "%s changed to %s" % (column_to_be_changed, new_data)}, 200)
+
+    except Exception as e:
+        return make_response({"Messsage": str(e)}, 500)
+    finally:
+        if cursor:
+            cursor.close()
+        if cnx: 
+            cnx.close()
+
+@app.route("/addBorrower", methods=["POST"])
 
 @app.route("/addEvent", methods=["POST"])
 def AddEvent():
