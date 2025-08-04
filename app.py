@@ -306,6 +306,43 @@ def getEvents():
     except Exception as e:
         return make_response({"error": str(e)}, 400)
 
+@app.route("/editEvent", methods=['PUT'])
+def editEvent():
+    try:
+        cnx = getDbConnection()
+        cursor = cnx.cursor()
+        data = request.json
+
+        sessionRole = getCurrentRole()
+
+        eventName = data["Event's Name"]
+        column_to_be_changed = data["Column"]
+        new_data = data["New Data"]
+
+        if sessionRole not in ("admin", "librarian"):
+            return make_response({"Message": "Only admin or librarian can make edits"}, 500)
+        
+        
+        cursor.execute(f"SELECT * FROM CalendarOfEvents WHERE eventName = '{eventName}';")
+        
+        data_from_eventName = cursor.fetchone()
+
+        if data_from_eventName == None:
+            return make_response({"Message": "Email not found"}, 500)
+        
+        cursor.execute(f"UPDATE CalendarOfEvents SET {column_to_be_changed} = '{new_data}' WHERE eventName = '{eventName}';")
+
+        cnx.commit()
+        return make_response({"Message": "%s changed to %s" % (column_to_be_changed, new_data)}, 200)
+
+    except Exception as e:
+        return make_response({"Messsage": str(e)}, 500)
+    finally:
+        if cursor:
+            cursor.close()
+        if cnx: 
+            cnx.close()
+
 
 @app.route("/login", methods=["POST"])
 def userLogin():
