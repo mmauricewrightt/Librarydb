@@ -343,6 +343,141 @@ def editEvent():
         if cnx: 
             cnx.close()
 
+@app.route("/addBook", methods=["POST"])
+def AddBook():
+    try:
+        cnx = getDbConnection()
+        cursor = cnx.cursor()
+        data = request.json
+
+        sessionRole = session.get('accountType')
+
+        bookName = data["Name of Book"]
+        bookAuthor = data["Name of Author"]
+
+      
+        if not all([bookName, bookAuthor]):
+            return make_response({"Message": "Information Missing"}, 400)
+
+        if sessionRole not in ("admin", "librarian"):
+            return make_response({"Message": "Only admin or librarian can add new Book"}, 400)
+
+        print(8)
+        cursor.execute(f"INSERT INTO Book(bookName, bookAuthor) VALUES ('{bookName}', '{bookAuthor}');")
+        print(9)
+        cnx.commit()
+        return make_response({"Message": "Book added"})
+    except Exception as e:
+        return make_response({"Message": "Error adding new Book"}, 400)
+    finally:
+        if cursor:
+            cursor.close
+        if cnx:
+            cnx.close
+
+@app.route("/getBooks", methods=['GET'])
+def getBooks():
+    try:
+        cnx = getDbConnection()
+        cursor = cnx.cursor()
+        cursor.execute("SELECT * FROM Book;")
+
+        books = []
+        for bookID, bookName, bookAuthor in cursor:
+            book = {}
+            book['id'] = bookID
+            book['name'] = bookName
+            book['author'] = bookAuthor
+
+            books.append(book)
+    
+        cursor.close()
+        cnx.close() 
+        return make_response(books, 200)
+    except Exception as e:
+        return make_response({"error": str(e)}, 400)
+    finally:
+        if cursor:
+            cursor.close()
+        if cnx:
+            cnx.close()
+
+@app.route("/deleteBook", methods=["DELETE"])
+def DeleteBook():
+    try:
+        cnx = getDbConnection()
+        cursor = cnx.cursor()
+        data = request.json
+        bookName = data["Book's Name"]
+
+        accountType = getCurrentRole()
+
+        cursor.execute(f"SELECT * FROM Book WHERE bookName='{bookName}';")
+
+        book = cursor.fetchone()
+
+        if book is None:
+            return make_response({"Message": f"No record of this book: {bookName}"}, 500)
+
+        if accountType in ("librarian", "admin"):
+            cursor.execute(f"DELETE FROM Book WHERE bookName='{bookName}';")
+            print(100000)
+            cnx.commit()
+            return make_response({"Message": f"Book: {book} was deleted"}, 200)     
+
+        return make_response({"Message": f"Failed to delete this book: {book}"})       
+
+    except Exception as e:
+        return make_response({"Message": str(e)}, 500)
+    finally:
+        if cursor:
+            cursor.close()
+        if cnx:
+            cnx.close()
+
+@app.route("/editBook", methods=['PUT'])
+def editBook():
+    try:
+        cnx = getDbConnection()
+        cursor = cnx.cursor()
+        data = request.json
+
+        sessionRole = getCurrentRole()
+
+        bookName = data["Book's Name"]
+        column_to_be_changed = data["Column"]
+        new_data = data["New Data"]
+
+        if not all ([bookName, column_to_be_changed, new_data]):
+            return make_response({"Message": "More data needed"})
+
+        if sessionRole not in ("admin", "librarian"):
+            return make_response({"Message": "Only admin or librarian can make edits"}, 500)
+        
+        
+        cursor.execute(f"SELECT * FROM Book WHERE bookName = '{bookName}';")
+        
+        data_from_bookName = cursor.fetchone()
+
+        if data_from_bookName == None:
+            return make_response({"Message": "Book not found"}, 500)
+        
+        print(9999999)
+        cursor.execute(f"UPDATE Book SET {column_to_be_changed} = '{new_data}' WHERE bookName = '{bookName}';")
+
+        cnx.commit()
+        print(0000000000000)
+        return make_response({"Message": "%s changed to %s" % (column_to_be_changed, new_data)}, 200)
+
+    except Exception as e:
+        return make_response({"Messsage": str(e)}, 500)
+    finally:
+        if cursor:
+            cursor.close()
+        if cnx: 
+            cnx.close()
+
+
 
 @app.route("/login", methods=["POST"])
 def userLogin():
