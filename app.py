@@ -17,6 +17,38 @@ def getDbConnection():
 def getCurrentRole():
     return session.get("accountType")
 
+@app.route("/test", methods=['GET'])
+def test():
+    return "connected"
+
+@app.route("/login", methods=["POST"])
+def userLogin():
+    try:
+        if session.get('role') is not None:
+            return make_response({"Message": "Cannot login concurrently"}, 400)
+        
+        cnx = getDbConnection()
+        cursor = cnx.cursor()
+        data = request.json
+        email = data["email"]
+        password = data["password"]
+
+        cursor.execute(f"SELECT * FROM Account WHERE email='{email}';")
+        user = cursor.fetchone()
+
+        if user is None:
+            return make_response({"Error": "Access denied. Re-check login information"}, 401)
+        if user[-1] not in ('admin', 'librarian'):
+            return make_response({"Message": "Unauthorized attempt"})
+        if password == (user[1]+user[-1]).lower():
+            session["accountType"] = user[-1]
+            return make_response({"Message": f"Welcome {user[1]}"})
+        
+    except Exception as e:
+        return make_response({"Error": str(e)}, 500)
+    
+
+
 @app.route("/addMember", methods=["POST"])
 def AddMember():
     try:
@@ -213,7 +245,64 @@ def editAccount():
         if cnx: 
             cnx.close()
 
+
+
 @app.route("/addBorrower", methods=["POST"])
+def AddBorrower():
+    try:
+        cnx = getDbConnection()
+        cursor = cnx.cursor()
+        data = request.json
+
+        sessionRole = session.get('accountType')
+
+        borrowerID = data["Borrower's ID"]
+        bookBorrowed = data["Book Borrowed"]
+
+      
+        if not all([borrowerID, bookBorrowed]):
+            return make_response({"Message": "Information Missing"}, 400)
+
+        if sessionRole not in ("admin", "librarian"):
+            return make_response({"Message": "Only admin or librarian can authorise borrower"}, 400)
+
+        print(8)
+        cursor.execute(f"INSERT INTO borrower(accountID, bookID) VALUES ('{borrowerID}', '{bookBorrowed}');")
+        print(9)
+        cnx.commit()
+        return make_response({"Message": "borrower added"})
+    except Exception as e:
+        return make_response({"Message": "Error adding borrower"}, 400)
+    finally:
+        if cursor:
+            cursor.close
+        if cnx:
+            cnx.close
+
+@app.route("/getBorrowers", methods=['GET'])
+def getBorrowers():
+    try:
+        cnx = getDbConnection()
+        cursor = cnx.cursor()
+        cursor.execute("SELECT * FROM Borrower;")
+
+        borrowers = []
+        for accountID, bookID, borrowDate, returnDate in cursor:
+            borrower = {}
+            borrower['Borrower ID'] = accountID
+            borrower['Book Borrowered'] = bookID
+            borrower['Borrow Date'] = borrowDate
+            borrower['Return Date'] = returnDate
+
+            borrowers.append(borrower)
+    
+        cursor.close()
+        cnx.close() 
+        return make_response(borrowers, 200)
+    except Exception as e:
+        return make_response({"error": str(e)}, 400)
+
+
 
 @app.route("/addEvent", methods=["POST"])
 def AddEvent():
@@ -343,6 +432,8 @@ def editEvent():
         if cnx: 
             cnx.close()
 
+
+
 @app.route("/addBook", methods=["POST"])
 def AddBook():
     try:
@@ -375,33 +466,6 @@ def AddBook():
         if cnx:
             cnx.close
 
-@app.route("/getBooks", methods=['GET'])
-def getBooks():
-    try:
-        cnx = getDbConnection()
-        cursor = cnx.cursor()
-        cursor.execute("SELECT * FROM Book;")
-
-        books = []
-        for bookID, bookName, bookAuthor in cursor:
-            book = {}
-            book['id'] = bookID
-            book['name'] = bookName
-            book['author'] = bookAuthor
-
-            books.append(book)
-    
-        cursor.close()
-        cnx.close() 
-        return make_response(books, 200)
-    except Exception as e:
-        return make_response({"error": str(e)}, 400)
-    finally:
-        if cursor:
-            cursor.close()
-        if cnx:
-            cnx.close()
-
 @app.route("/deleteBook", methods=["DELETE"])
 def DeleteBook():
     try:
@@ -429,6 +493,33 @@ def DeleteBook():
 
     except Exception as e:
         return make_response({"Message": str(e)}, 500)
+    finally:
+        if cursor:
+            cursor.close()
+        if cnx:
+            cnx.close()
+
+@app.route("/getBooks", methods=['GET'])
+def getBooks():
+    try:
+        cnx = getDbConnection()
+        cursor = cnx.cursor()
+        cursor.execute("SELECT * FROM Book;")
+
+        books = []
+        for bookID, bookName, bookAuthor in cursor:
+            book = {}
+            book['id'] = bookID
+            book['name'] = bookName
+            book['author'] = bookAuthor
+
+            books.append(book)
+    
+        cursor.close()
+        cnx.close() 
+        return make_response(books, 200)
+    except Exception as e:
+        return make_response({"error": str(e)}, 400)
     finally:
         if cursor:
             cursor.close()
@@ -476,38 +567,6 @@ def editBook():
             cursor.close()
         if cnx: 
             cnx.close()
-
-
-
-@app.route("/login", methods=["POST"])
-def userLogin():
-    try:
-        if session.get('role') is not None:
-            return make_response({"Message": "Cannot login concurrently"}, 400)
-        
-        cnx = getDbConnection()
-        cursor = cnx.cursor()
-        data = request.json
-        email = data["email"]
-        password = data["password"]
-
-        cursor.execute(f"SELECT * FROM Account WHERE email='{email}';")
-        user = cursor.fetchone()
-
-        if user is None:
-            return make_response({"Error": "Access denied. Re-check login information"}, 401)
-        if user[-1] not in ('admin', 'librarian'):
-            return make_response({"Message": "Unauthorized attempt"})
-        if password == (user[1]+user[-1]).lower():
-            session["accountType"] = user[-1]
-            return make_response({"Message": f"Welcome {user[1]}"})
-        
-    except Exception as e:
-        return make_response({"Error": str(e)}, 500)
-    
-@app.route("/test", methods=['GET'])
-def test():
-    return "connected"
 
 
 if __name__ == '__main__':
